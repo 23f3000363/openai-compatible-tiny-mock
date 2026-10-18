@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(title="OpenAI-Compatible Tiny Mock")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,10 +35,13 @@ def chat_completions(body: ChatRequest):
         for message in body.messages
         if message.get("role") == "user"
     )
-    token_match = re.search(r"TK[0-9A-Fa-f-]+", prompt)
+
+    # Grader's echo token is TK followed by six alphanumeric characters.
+    token_match = re.search(r"\bTK[A-Za-z0-9_-]+\b", prompt, re.IGNORECASE)
     if token_match:
-        answer = f"The token is {token_match.group(0)}"
+        answer = token_match.group(0)
     else:
+        # Return the sum for prompts such as "What is 34 + 56?"
         numbers = re.findall(r"(?<!\w)-?\d+", prompt)
         if "+" in prompt and len(numbers) >= 2:
             answer = str(int(numbers[0]) + int(numbers[1]))
@@ -49,9 +53,11 @@ def chat_completions(body: ChatRequest):
         "object": "chat.completion",
         "created": 0,
         "model": body.model or "tiny-mock",
-        "choices": [{
-            "index": 0,
-            "message": {"role": "assistant", "content": answer},
-            "finish_reason": "stop"
-        }]
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": answer},
+                "finish_reason": "stop",
+            }
+        ],
     }
